@@ -60,6 +60,23 @@ class TestCounterEndPoints:
         """It should return 404 for updating a non-existent counter"""
         result = client.put('/counters/nonexistent')
         assert result.status_code == status.HTTP_404_NOT_FOUND
+    
+    def test_delete_counter(self, client):
+        """It should delete a counter"""
+        # Create a counter first
+        result = client.post('/counters/test')
+        assert result.status_code == status.HTTP_201_CREATED
+        # Delete the counter
+        response = client.delete('/counters/test')
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        # Verify the counter is deleted
+        result = client.get('/counters/test')
+        assert result.status_code == status.HTTP_404_NOT_FOUND
+    
+    def test_delete_non_existent_counter(self, client):
+        """It should return 404 for deleting a non-existent counter"""
+        response = client.delete('/counters/nonexistent')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 def test_read_a_counter(client):
     """It should read a counter"""
