@@ -20,54 +20,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # Conditional step: Use a container for Linux runners, install Python directly for Windows
-      - name: Set up Python
-        if: runner.os == 'Linux'
-        run: |
-          # Use containerized Python on Linux runners
-          docker pull python:${{ matrix.python-version }}-slim
-          docker run -v ${{ github.workspace }}:/workspace python:${{ matrix.python-version }}-slim
-        else:
-          # Install Python natively on Windows runners
-          uses: actions/setup-python@v4
-          with:
-            python-version: ${{ matrix.python-version }}
+      # Step 2: Set up Python for Linux runners using a container
+      - name: Set up Python (Linux)
+        if: runner.os == 'Linux'  # Only run this step on Linux
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
-      # Step 2: Install dependencies
+      # Step 3: Set up Python for Windows runners
+      - name: Set up Python (Windows)
+        if: runner.os == 'Windows'  # Only run this step on Windows
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Step 4: Install dependencies
       - name: Install dependencies
         run: |
           # Upgrade pip and install dependencies from the requirements.txt file
           python -m pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org
           pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 
-      # Step 3: Lint code using flake8
+      # Step 5: Lint code using flake8
       - name: Lint with flake8
         run: |
           flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 src --count --max-complexity=10 --max-line-length=127 --statistics
 
-      # Step 4: Run unit tests using pytest
+      # Step 6: Run unit tests using pytest
       - name: Run unit tests with pytest
         run: |
           pytest -v --tb=short --color=yes --cov=src --cov-report=term-missing
 
-      # Step 5: Generate and save a coverage report
+      # Step 7: Generate and save a coverage report
       - name: Generate coverage report
         run: |
           pytest -v --tb=short --color=yes --cov=src --cov-report=xml
 
-      # Step 6: Upload coverage report to Coveralls
+      # Step 8: Upload coverage report to Coveralls
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 7: Run static code security analysis with Bandit
+      # Step 9: Run static code security analysis with Bandit
       - name: Run security analysis with Bandit
         run: |
           bandit -r src/
 
-      # Step 8: Perform code quality analysis with SonarQube
+      # Step 10: Perform code quality analysis with SonarQube
       - name: SonarQube Scan
         run: |
           sonar-scanner \
@@ -76,7 +77,7 @@ jobs:
           -Dsonar.host.url=http://sonarqube-server:9000 \
           -Dsonar.login=$SONARQUBE_TOKEN
 
-      # Step 9: Perform security scan of the Python image with Trivy (only on Linux)
+      # Step 11: Perform security scan of the Python image with Trivy (only on Linux)
       - name: Security Scan with Trivy
         if: runner.os == 'Linux'  # Only run on Linux
         run: |
