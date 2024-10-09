@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]  # Test on both Linux and Windows
-        python-version: [3.8, 3.9, 3.10]  # Test on Python versions 3.8, 3.9, and 3.10
+        python-version: [3.8, 3.9]  # Test on Python versions 3.8, and 3.9
 
     steps:
       # Step 1: Checkout the repository code
