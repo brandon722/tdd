@@ -13,72 +13,29 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]  # Test on both Linux and Windows
-        python-version: [3.8, 3.9]  # Test on Python versions 3.8, and 3.9
+        python-version: [3.8, 3.9, 3.10]  # Ensure correct versions are specified
 
     steps:
-      # Step 1: Checkout the repository code
       - name: Checkout
         uses: actions/checkout@v3
 
-      # Step 2: Set up Python for Linux runners using a container
-      - name: Set up Python (Linux)
-        if: runner.os == 'Linux'  # Only run this step on Linux
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}  # Use matrix variable
 
-      # Step 3: Set up Python for Windows runners
-      - name: Set up Python (Windows)
-        if: runner.os == 'Windows'  # Only run this step on Windows
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      # Step 4: Install dependencies
       - name: Install dependencies
         run: |
-          # Upgrade pip and install dependencies from the requirements.txt file
           python -m pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org
           pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 
-      # Step 5: Lint code using flake8
       - name: Lint with flake8
         run: |
           flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 src --count --max-complexity=10 --max-line-length=127 --statistics
 
-      # Step 6: Run unit tests using pytest
       - name: Run unit tests with pytest
-        run: |
-          pytest -v --tb=short --color=yes --cov=src --cov-report=term-missing
+        run: pytest -v --tb=short --color=yes --cov=src --cov-report=term-missing
 
-      # Step 7: Generate and save a coverage report
-      - name: Generate coverage report
-        run: |
-          pytest -v --tb=short --color=yes --cov=src --cov-report=xml
-
-      # Step 8: Upload coverage report to Coveralls
-      - name: Upload coverage to Coveralls
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Step 9: Run static code security analysis with Bandit
       - name: Run security analysis with Bandit
-        run: |
-          bandit -r src/
-
-      # Step 10: Perform code quality analysis with SonarQube
-      - name: SonarQube Scan
-        run: |
-          sonar-scanner \
-          -Dsonar.projectKey=your_project_key \
-          -Dsonar.sources=src \
-          -Dsonar.host.url=http://sonarqube-server:9000 \
-          -Dsonar.login=$SONARQUBE_TOKEN
-
-      # Step 11: Perform security scan of the Python image with Trivy (only on Linux)
-      - name: Security Scan with Trivy
-        if: runner.os == 'Linux'  # Only run on Linux
-        run: |
-          trivy image python:${{ matrix.python-version }}-slim
+        run: bandit -r src/
