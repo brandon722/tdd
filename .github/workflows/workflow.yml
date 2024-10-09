@@ -1,65 +1,62 @@
-# Name of the workflow as it will appear in the GitHub Actions tab
 name: CI workflow
-
-# Define the events that will trigger the workflow
 on:
-  push:  # Runs on push to the main branch
+  push:
     branches:
       - main
-  pull_request:  # Runs on pull requests to the main branch
+  pull_request:
     branches:
       - main
 
-# Define the jobs (tasks) that the workflow will perform
 jobs:
   build:
-    # Runs the job on both Ubuntu and Windows
     runs-on: ${{ matrix.os }}
-    
-    # Define a matrix to test across multiple Python versions and operating systems
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]  # Test on Ubuntu and Windows
+        os: [ubuntu-latest, windows-latest]  # Test on both Linux and Windows
         python-version: [3.8, 3.9, 3.10]  # Test on Python versions 3.8, 3.9, and 3.10
-    
-    # Use the appropriate Python container based on the matrix
-    container:
-      image: python:${{ matrix.python-version }}-slim
 
-    # List of steps to run in the workflow
     steps:
       # Step 1: Checkout the repository code
       - name: Checkout
         uses: actions/checkout@v3
 
-      # Step 2: Install Python dependencies
+      # Conditional step: Use a container for Linux runners, install Python directly for Windows
+      - name: Set up Python
+        if: runner.os == 'Linux'
+        run: |
+          # Use containerized Python on Linux runners
+          docker pull python:${{ matrix.python-version }}-slim
+          docker run -v ${{ github.workspace }}:/workspace python:${{ matrix.python-version }}-slim
+        else:
+          # Install Python natively on Windows runners
+          uses: actions/setup-python@v4
+          with:
+            python-version: ${{ matrix.python-version }}
+
+      # Step 2: Install dependencies
       - name: Install dependencies
         run: |
           # Upgrade pip and install dependencies from the requirements.txt file
           python -m pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org
           pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 
-      # Step 3: Lint code using flake8 (with specific rules and statistics)
+      # Step 3: Lint code using flake8
       - name: Lint with flake8
         run: |
-          # Perform linting for specific error codes
           flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Check for complexity and max line length
           flake8 src --count --max-complexity=10 --max-line-length=127 --statistics
 
       # Step 4: Run unit tests using pytest
       - name: Run unit tests with pytest
         run: |
-          # Run tests with coverage and output test details in a short traceback format
           pytest -v --tb=short --color=yes --cov=src --cov-report=term-missing
 
-      # Step 5: Generate and save a coverage report for further analysis
+      # Step 5: Generate and save a coverage report
       - name: Generate coverage report
         run: |
-          # Run tests and generate a coverage XML report
           pytest -v --tb=short --color=yes --cov=src --cov-report=xml
 
-      # Step 6: Upload the coverage report to Coveralls (requires GitHub token)
+      # Step 6: Upload coverage report to Coveralls
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
         with:
@@ -68,21 +65,19 @@ jobs:
       # Step 7: Run static code security analysis with Bandit
       - name: Run security analysis with Bandit
         run: |
-          # Perform security checks on the source code
           bandit -r src/
 
       # Step 8: Perform code quality analysis with SonarQube
       - name: SonarQube Scan
         run: |
-          # Run SonarQube scan with the required project settings
           sonar-scanner \
           -Dsonar.projectKey=your_project_key \
           -Dsonar.sources=src \
           -Dsonar.host.url=http://sonarqube-server:9000 \
-          -Dsonar.login=$SONARQUBE_TOKEN  # Token for authentication
+          -Dsonar.login=$SONARQUBE_TOKEN
 
-      # Step 9: Perform security scan of the Python image with Trivy
+      # Step 9: Perform security scan of the Python image with Trivy (only on Linux)
       - name: Security Scan with Trivy
+        if: runner.os == 'Linux'  # Only run on Linux
         run: |
-          # Scan the Python Docker image for vulnerabilities
           trivy image python:${{ matrix.python-version }}-slim
